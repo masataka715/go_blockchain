@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// nouceを求める際に、先頭3つが000の値を探す
+const MINING_DIFFICULTY = 3
+
 // Block
 type Block struct {
 	nonce        int
@@ -95,10 +98,46 @@ func (bc *Blockchain) AddTransaction(sender string, recipient string, value floa
 	bc.transactionPool = append(bc.transactionPool, t)
 }
 
+func (bc *Blockchain) CopyTransactionPool() []*Transaction {
+	transactions := make([]*Transaction, 0)
+	for _, t := range bc.transactionPool {
+		transactions = append(transactions,
+			NewTransaction(t.senderBlockchainAddress,
+				t.recipientBlockchainAddress,
+				t.value),
+		)
+	}
+	return transactions
+}
+
+func (bc *Blockchain) ValidProof(nouce int, previousHash [sha256.Size]byte, transactions []*Transaction, difficulty int) bool {
+	zeros := strings.Repeat("0", difficulty)
+	guessBlock := Block{
+		nonce:        nouce,
+		previousHash: previousHash,
+		timestamp:    0,
+		transactions: transactions,
+	}
+	gueesHashStr := fmt.Sprintf("%x", guessBlock.Hash())
+	return gueesHashStr[:difficulty] == zeros
+}
+
+// ProofOfWork
+// nouceを求める演算処理
+func (bc *Blockchain) ProofOfWork() int {
+	transactions := bc.CopyTransactionPool()
+	previousHash := bc.LastBlock().Hash()
+	nonce := 0
+	for !bc.ValidProof(nonce, previousHash, transactions, MINING_DIFFICULTY) {
+		nonce += 1
+	}
+	return nonce
+}
+
 type Transaction struct {
 	senderBlockchainAddress    string
 	recipientBlockchainAddress string
-	value                      float32 // 送金にする額
+	value                      float32 // 送金する額
 }
 
 func NewTransaction(sender string, recipient string, value float32) *Transaction {
@@ -135,7 +174,8 @@ func main() {
 	// AさんがBさんに1.0コインを送金
 	blockChain.AddTransaction("A", "B", 1.0)
 	previousHash := blockChain.LastBlock().Hash()
-	blockChain.CreateBlock(5, previousHash) // 2個目のブロック
+	nouce := blockChain.ProofOfWork()
+	blockChain.CreateBlock(nouce, previousHash) // 2個目のブロック
 	blockChain.Print()
 
 	// CさんがDさんに2.0コインを送金
@@ -143,6 +183,7 @@ func main() {
 	// XさんがYさんに3.0コインを送金
 	blockChain.AddTransaction("X", "Y", 3.0)
 	previousHash = blockChain.LastBlock().Hash()
-	blockChain.CreateBlock(2, previousHash) // 3個目のブロック
+	nouce = blockChain.ProofOfWork()
+	blockChain.CreateBlock(nouce, previousHash) // 3個目のブロック
 	blockChain.Print()
 }

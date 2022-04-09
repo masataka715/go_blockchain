@@ -9,8 +9,11 @@ import (
 	"time"
 )
 
-// nouceを求める際に、先頭3つが000の値を探す
-const MINING_DIFFICULTY = 3
+const (
+	MINING_DIFFICULTY = 3                // nouceを求める際に、先頭3つが000の値を探す
+	MINING_SENDER     = "THE BLOCKCHAIN" // マイニングする人(報酬を受け取る人)から見た、送信者（node側）のブロックチェーンアドレス
+	MINING_REWARD     = 1.0              // マイニングに成功した場合の報酬
+)
 
 // Block
 type Block struct {
@@ -61,13 +64,15 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 
 // Blockchain
 type Blockchain struct {
-	transactionPool []*Transaction
-	chain           []*Block
+	transactionPool   []*Transaction
+	chain             []*Block
+	blockchainAddress string
 }
 
-func NewBlockchain() *Blockchain {
+func NewBlockchain(blockchainAddress string) *Blockchain {
 	b := &Block{}
 	bc := new(Blockchain)
+	bc.blockchainAddress = blockchainAddress
 	bc.CreateBlock(0, b.Hash()) // 1個目のブロック
 	return bc
 }
@@ -134,6 +139,15 @@ func (bc *Blockchain) ProofOfWork() int {
 	return nonce
 }
 
+func (bc *Blockchain) Mining() bool {
+	bc.AddTransaction(MINING_SENDER, bc.blockchainAddress, MINING_REWARD)
+	nonce := bc.ProofOfWork()
+	previousHash := bc.LastBlock().Hash()
+	bc.CreateBlock(nonce, previousHash)
+	log.Println("action=mining, status=success")
+	return true
+}
+
 type Transaction struct {
 	senderBlockchainAddress    string
 	recipientBlockchainAddress string
@@ -168,22 +182,20 @@ func init() {
 }
 
 func main() {
-	blockChain := NewBlockchain()
+	myBlockchainAddress := "my_blockchain_address" // マイニングする人のアドレス
+
+	blockChain := NewBlockchain(myBlockchainAddress)
 	blockChain.Print()
 
 	// AさんがBさんに1.0コインを送金
 	blockChain.AddTransaction("A", "B", 1.0)
-	previousHash := blockChain.LastBlock().Hash()
-	nouce := blockChain.ProofOfWork()
-	blockChain.CreateBlock(nouce, previousHash) // 2個目のブロック
+	blockChain.Mining() // 2個目のブロック
 	blockChain.Print()
 
 	// CさんがDさんに2.0コインを送金
 	blockChain.AddTransaction("C", "D", 2.0)
 	// XさんがYさんに3.0コインを送金
 	blockChain.AddTransaction("X", "Y", 3.0)
-	previousHash = blockChain.LastBlock().Hash()
-	nouce = blockChain.ProofOfWork()
-	blockChain.CreateBlock(nouce, previousHash) // 3個目のブロック
+	blockChain.Mining() // 3個目のブロック
 	blockChain.Print()
 }

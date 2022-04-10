@@ -1,5 +1,4 @@
 ```
-$ go run main.go
 Added?  true
 Blockchain: 2022/04/09 16:47:27 action=mining, status=success
 ========================= Chain 0 ========================= 
